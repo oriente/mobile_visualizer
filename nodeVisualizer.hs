@@ -32,24 +32,6 @@ data Line = MkLine  {
                       endY :: YCo
                     } deriving (Eq, Ord, Show) 
 
-ball1 :: Ball
-ball1 = MkBall { 
-                 nid = -1,
-                 xco = 100,
-                 yco = 200,
-                 radius = 10,
-                 color = "#FF7F00" -- orange RGB
-               }
-
-ball2 :: Ball
-ball2 = MkBall { 
-                 nid = -2,
-                 xco = 150,
-                 yco = 200,
-                 radius = 10,
-                 color = "#FF7F00"
-               }
-
 lineColor :: String
 lineColor = "#00FFFF"
 
@@ -57,7 +39,7 @@ nWifi :: Int
 nWifi = 20
 
 nNeighbor :: Float
-nNeighbor = 6.0
+nNeighbor = 4.0
 
 gBound :: Bounds
 gBound = (0, nWifi - 1)
@@ -220,40 +202,78 @@ outputTest = do
   contents <- getContents
   print (constructTBall $ (lines contents))
 
-main = do
-  args <- getArgs
-  
-  blankCanvas (read (args!!0) ::Int) $ \ context -> do
-    contents <- getContents
-    loop context (constructTBall $ (lines contents)) (0 :: Float)
-      
-loop context bs n = 
-  if (n>11) then
-    do
-      send context $ do
-        (width,height) <- size
-        fillStyle "Blue"
-        beginPath ()
-        font "100pt Georgia"
-        fillText("TIME OUT", (width*0.1), (height*0.5))
-        closePath ()
-  else
-    do
+restart :: [[Ball]] -> Context -> IO()
+restart tb context = do
+    event <- send context $ readEvent MouseDown
+    case jsMouse event of
+      Nothing -> do
+        send context $ do
+          (width,height) <- size
+          clearRect (0,0,width,height)
+      Just (x,y) -> loop context tb 0
+    restart tb context
+
+drawCanvas :: Context -> [[Ball]] -> Int -> IO()
+drawCanvas context bs n = do 
       send context $ do
         (width,height) <- size
         clearRect (0,0,width,height)
-        renderLines (findLines $ head bs)
-        renderBalls (head bs)
-        --renderText (show n)
-        --renderPowerBar  (width*0.8) (height*0.8)
-        --let edge_number = fromIntegral(length $ findLines $ head bs)/190
-        let flow_robust = (flowRobust $ mkGraph $ reducedPairs $ head bs) 
-        --renderPowerBar flow_robust barWidth barHeight
-        --renderPowerBar edge_number (width*0.7) (height*0.8)
+        renderLines (findLines $ (bs!!n))
+        renderBalls (bs!!n)
+        let flow_robust = (flowRobust $ mkGraph $ reducedPairs $ (bs!!n) )
         renderPowerBar flow_robust (width*0.8) (height*0.8)
         renderText "Flow Robustness" (width*0.81) (height*0.85)
-        renderText ("time: " ++ show n) (width*0.81) (height*0.1)
-      loop context (tail bs) (n+0.1)
+        renderText ("time [0.1s]: " ++ show n) (width*0.81) (height*0.1)
 
+loop :: Context -> [[Ball]] -> Int -> IO()
+loop context bs n = 
+    do
+      q <- events context MouseDown
+      drawCanvas context bs n 
+      me <- tryReadEventQueue q
+      case me >>= jsMouse of
+        Nothing -> do
+          if (n < 1000) then
+            loop context bs (n+1)
+          else
+            send context $ do
+              (width,height) <- size
+              fillStyle "Blue"
+              beginPath ()
+              font "100pt Georgia"
+              fillText("TIME OUT", (width*0.1), (height*0.5))
+              closePath ()
+
+        Just (x,y) -> do 
+          rloop context bs n
+
+rloop :: Context -> [[Ball]] -> Int -> IO()
+rloop context bs n = 
+    do
+      q <- events context MouseDown
+      drawCanvas context bs n 
+      me <- tryReadEventQueue q
+      case me >>= jsMouse of
+        Nothing -> do
+          if (n > 0) then
+            rloop context bs (n-1)
+          else
+            send context $ do
+              (width,height) <- size
+              fillStyle "Blue"
+              beginPath ()
+              font "100pt Georgia"
+              fillText("BackToStart", (width*0.1), (height*0.5))
+              closePath ()
+        Just (x,y) -> do 
+          loop context bs n
+
+main = do
+  args <- getArgs
+  blankCanvas (read (args!!0) ::Int) $ \ context -> do
+    contents <- getContents
+    let tballs = constructTBall $ (lines contents)
+    loop context tballs (0 :: Int)
+    restart tballs context 
 
 
