@@ -1,3 +1,5 @@
+
+
 import Data.Maybe
 import Control.Concurrent
 import Data.Char
@@ -8,18 +10,18 @@ import System.Environment
 import Data.Graph
 import Data.Tree
 
-type NodeID = Int
-type XCo    = Float
-type YCo    = Float
-type ZCo    = Float
-type Radius = Float
+type NodeID   = Int
+type XCo      = Float
+type YCo      = Float
+type ZCo      = Float
+type Radius   = Float
 type Distance = Float
-type Color  = String
-type Time 	= Float
+type Color    = String
+type Time     = Float
 
 data Ball = MkBall { 
                     nid :: NodeID,
-					          xco :: XCo,
+                    xco :: XCo,
                     yco :: YCo,
                     radius :: Radius,
                     color :: Color
