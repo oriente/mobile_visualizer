@@ -65,8 +65,10 @@ scaleR :: Float -> Float -> Float
 scaleR r c = (r * c / areaLength) * 0.8
 
 constructBallList :: [String] -> [Ball]
-constructBallList [] = []
-constructBallList (x:xs) = (parseNode x) : (constructBallList xs)
+constructBallList = map parseNode
+-- an equivilant recursive implementation
+--constructBallList [] = []
+--constructBallList (x:xs) = (parseNode x) : (constructBallList xs)
 
 constructTBall :: [String] -> [[Ball]] -- TBall
 constructTBall [] = []
@@ -227,48 +229,52 @@ drawCanvas context bs n = do
         renderText "Flow Robustness" (width*0.81) (height*0.85)
         renderText ("time [0.1s]: " ++ show n) (width*0.81) (height*0.1)
 
+
+-- jscode of keys: F -> 70, B-> 66, S -> 83
+stop :: Context -> [[Ball]] -> Int -> IO()
+stop context bs n = 
+    do
+      drawCanvas context bs n 
+      event <- send context $ tryReadEvents [KeyDown]
+      case event of
+        Just (NamedEvent KeyDown e) -> do 
+          case jsCode e of 
+            66 -> rloop context bs n
+            70 -> loop context bs (n+1)
+            _ -> stop context bs n
+        Nothing -> do
+          stop context bs n
+
 loop :: Context -> [[Ball]] -> Int -> IO()
 loop context bs n = 
     do
-      q <- events context MouseDown
       drawCanvas context bs n 
-      me <- tryReadEventQueue q
-      case me >>= jsMouse of
+      event <- send context $ tryReadEvents [KeyDown]
+      case event of
+        Just (NamedEvent KeyDown e) -> do 
+          case jsCode e of 
+            66 -> rloop context bs n
+            83 -> stop context bs n
+            _  -> loop context bs (n+1)
         Nothing -> do
-          if (n < 1000) then
-            loop context bs (n+1)
-          else
-            send context $ do
-              (width,height) <- size
-              fillStyle "Blue"
-              beginPath ()
-              font "100pt Georgia"
-              fillText("TIME OUT", (width*0.1), (height*0.5))
-              closePath ()
+          loop context bs (n+1)
 
-        Just (x,y) -> do 
-          rloop context bs n
-
+-- program needs to be reinitiated if going back the 0 time
 rloop :: Context -> [[Ball]] -> Int -> IO()
 rloop context bs n = 
     do
-      q <- events context MouseDown
       drawCanvas context bs n 
-      me <- tryReadEventQueue q
-      case me >>= jsMouse of
+      event <- send context $ tryReadEvents [KeyDown]
+      case event of 
+        Just (NamedEvent KeyDown e) -> do 
+          case jsCode e of 
+            70 -> loop context bs n
+            83 -> stop context bs n
+            _  -> rloop context bs (n-1)
         Nothing -> do
-          if (n > 0) then
-            rloop context bs (n-1)
-          else
-            send context $ do
-              (width,height) <- size
-              fillStyle "Blue"
-              beginPath ()
-              font "100pt Georgia"
-              fillText("BackToStart", (width*0.1), (height*0.5))
-              closePath ()
-        Just (x,y) -> do 
-          loop context bs n
+          rloop context bs (n-1)
+
+
 
 main = do
   args <- getArgs
