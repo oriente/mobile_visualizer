@@ -35,7 +35,6 @@ rects :: Int -> RecX -> RecY -> Canvas ()
 rects 0 _ _ = return ()
 rects i x y = do
 	(width,height) <- size
-	--rects (i-1) x (y+10.1)
 	rect x y (width*0.1) barHeight (powerBar !! ( i-1 ) )
 	rects (i-1) x (y+10)
 
