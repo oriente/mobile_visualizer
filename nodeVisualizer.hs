@@ -1,59 +1,18 @@
-
+import PowerBar
+import GraphConstruction
 
 import Data.Maybe
 import Control.Concurrent
 import Data.Char
 import Data.List.Split
 import Graphics.Blank
-import PowerBar
 import System.Environment  
-import Data.Graph
-import Data.Tree
-
-type NodeID   = Int
-type XCo      = Float
-type YCo      = Float
-type ZCo      = Float
-type Radius   = Float
-type Distance = Float
-type Color    = String
-type Time     = Float
-
-data Ball = MkBall { 
-                    nid :: NodeID,
-                    xco :: XCo,
-                    yco :: YCo,
-                    radius :: Radius,
-                    color :: Color
-                   } deriving (Eq, Ord, Show)  
-
-data Line = MkLine  {
-                      startX :: XCo,
-                      startY :: YCo,
-                      endX :: XCo,
-                      endY :: YCo
-                    } deriving (Eq, Ord, Show) 
 
 lineColor :: String
 lineColor = "#00FFFF"
 
-nWifi :: Int
-nWifi = 20
-
-nNeighbor :: Float
-nNeighbor = 4.0
-
-gBound :: Bounds
-gBound = (0, nWifi - 1)
-
-tranRange :: Float
-tranRange = 100.0
-
 ballRad :: Radius
 ballRad = 10
---sqrt(m_nWifi*3.14*pow(m_maxRange, 2)/m_nNeighb);
-areaLength :: Float
-areaLength = sqrt(fromIntegral(nWifi)*3.14*(tranRange**2)/nNeighbor)
 
 scaleX :: Float -> Float -> Float 
 scaleX x w = (x * w / areaLength) * 0.8 + 0.1 * w
@@ -66,27 +25,25 @@ scaleR r c = (r * c / areaLength) * 0.8
 
 constructBallList :: [String] -> [Ball]
 constructBallList = map parseNode
--- an equivilant recursive implementation
---constructBallList [] = []
---constructBallList (x:xs) = (parseNode x) : (constructBallList xs)
 
-constructTBall :: [String] -> [[Ball]] -- TBall
+constructTBall :: [String] -> [[Ball]]
 constructTBall [] = []
 constructTBall xs = (constructBallList current) : (constructTBall rest)
-			where
-				current = take nWifi xs 
-				rest    = drop nWifi xs
+      where
+        current = take nWifi xs 
+        rest    = drop nWifi xs
 
-
+-- parse a line of original strings into a node
 parseNode :: String -> Ball
 parseNode xs = MkBall i x y ballRad "#FFD473"
-	where 
-		parsedList = splitOneOf "=+: n" xs
-		--t = read (parsedList !! 3)  :: Float
-		i = read (parsedList !! 7) :: Int
-		x = read (parsedList !! 9)  :: Float
-		y = read (parsedList !! 10) :: Float
+  where 
+    parsedList = splitOneOf "=+: n" xs
+    --t = read (parsedList !! 3)  :: Float
+    i = read (parsedList !! 7) :: Int
+    x = read (parsedList !! 9)  :: Float
+    y = read (parsedList !! 10) :: Float
 
+-- format the transmission range circle 
 rangeCircle :: NodeID -> XCo -> YCo ->  Radius -> Color -> Canvas ()
 rangeCircle i x y r col = do 
   (width,height) <- size
@@ -99,6 +56,7 @@ rangeCircle i x y r col = do
   stroke()
   closePath ()
 
+-- format the node
 circle :: NodeID -> XCo -> YCo ->  Radius -> Color -> Canvas ()
 circle i x y r col = do 
   (width,height) <- size
@@ -111,6 +69,7 @@ circle i x y r col = do
   font "8pt Calibri"
   fillText(show i, scaleX (x-4) height, scaleY (y-2) height)
                     
+-- format the line                
 line :: XCo -> YCo -> XCo -> YCo -> Canvas ()
 line x1 y1 x2 y2 = do
   (width,height) <- size
@@ -122,7 +81,8 @@ line x1 y1 x2 y2 = do
   strokeStyle lineColor           
   stroke()
   closePath ()
-                      
+
+--  render text into Canvas
 renderText :: String -> Float -> Float ->Canvas ()
 renderText str tx ty = do
   fillStyle "Blue"
@@ -131,76 +91,29 @@ renderText str tx ty = do
   fillText(str, tx, ty)
   closePath ()
 
+-- render one node into Canvas
 renderBall :: Ball -> Canvas ()
 renderBall b = do
   circle (nid b) (xco b) (yco b) (radius b) (color b)
   rangeCircle (nid b) (xco b) (yco b) tranRange (color b)
 
+-- render all nodes into Canvas
 renderBalls :: [Ball] -> Canvas ()
 renderBalls []     = return ()
 renderBalls (b:bs) = do renderBall b
                         renderBalls bs
 
--- how to get Maybe Line to Line 
+-- render one link into Canvas
 renderLine :: Line -> Canvas ()
 renderLine l =  line (startX l) (startY l) (endX l) (endY l)
                       
-
+-- render all links into Canvas
 renderLines :: [Line] -> Canvas ()
 renderLines [] = return ()
 renderLines (l:ls) = do 
                     renderLine l
                     renderLines ls
 
-computeDis :: (Ball, Ball) -> Distance
-computeDis (b1, b2) = sqrt $ (xco b1 - xco b2)**2 + (yco b1 - yco b2)**2
-                  
-addLine :: (Ball, Ball) -> Line
-addLine (b1, b2) =  MkLine (xco b1) (yco b1) (xco b2) (yco b2) 
-
--- remove (1, 2) <=> (2, 1) redundent edges and remove edge out of range
-reduceAdj :: [(Ball, Ball)] -> [(Ball, Ball)]
-reduceAdj [] = []
-reduceAdj (p:ps) =  
-  if ( (nid (fst p)) < (nid (snd p)) && dis < 100 )  then
-    p : reduceAdj ps
-  else
-    reduceAdj ps 
-  where
-    dis = computeDis (fst p, snd p)
-
-reducedPairs :: [Ball] -> [(Ball, Ball)]
-reducedPairs bs = reduceAdj [(b1,b2) | b1 <- bs, b2 <- bs]
-
-cleanLines :: [Line] -> [Line]
-cleanLines [] = []
-cleanLines (l:ls) = 
-  if ( (startX l) == -1 ) then
-    l : cleanLines ls
-  else
-    cleanLines ls
-         
-findLines :: [Ball] -> [Line]
-findLines bs = fmap addLine (reducedPairs bs)
-
----- construct a graph
-getEdges ::  [(Ball,Ball)] -> [Edge]
-getEdges [] = []
-getEdges pairs = (nid (fst (head pairs)), nid (snd (head pairs)) ): getEdges (tail pairs)
-
-mkGraph :: [(Ball,Ball)] -> Graph
-mkGraph pairs = buildG gBound (getEdges pairs)
-
-flows :: Forest Vertex -> Int
-flows [] = 0
-flows (c:cs) = ((length (flatten c)) * (length (flatten c)-1)) + flows cs  
-
-maxFlow :: Bounds -> Int
-maxFlow b = (snd b) * (snd b + 1)
-
-flowRobust :: Graph -> Float
-flowRobust aGraph = fromIntegral(flows $ components aGraph) / fromIntegral (maxFlow gBound)
- 
 outputTest :: IO() 
 outputTest = do 
   contents <- getContents
@@ -230,7 +143,7 @@ drawCanvas context bs n = do
         renderText ("time [0.1s]: " ++ show n) (width*0.81) (height*0.1)
 
 
--- jscode of keys: F -> 70, B-> 66, S -> 83
+-- jscode of keys: F(arward) -> 70, B(ack) -> 66, S(top) -> 83
 stop :: Context -> [[Ball]] -> Int -> IO()
 stop context bs n = 
     do
@@ -273,8 +186,6 @@ rloop context bs n =
             _  -> rloop context bs (n-1)
         Nothing -> do
           rloop context bs (n-1)
-
-
 
 main = do
   args <- getArgs
