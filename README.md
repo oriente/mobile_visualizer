@@ -18,7 +18,5 @@ the first argument 1989 is the port number of http server so that you can run in
 
 =================
 implementation notes:
--- an equivalent recursive implementation of constructBallList
-constructBallList [] = []
-constructBallList (x:xs) = (parseNode x) : (constructBallList xs)
+
 
