@@ -11,6 +11,7 @@ It has 3 main modules.
 
 =================
 how to run:
+
 $ ghc nodeVisualizer.hs
 
 $ ./nodeVisualizer 1989 < w20n4s1001v10.mob
