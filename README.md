@@ -12,7 +12,8 @@ It has 3 main modules.
 =================
 how to run:
 $ ghc nodeVisualizer.hs
-./nodeVisualizer 1989 < w20n4s1001v10.mob
+
+$ ./nodeVisualizer 1989 < w20n4s1001v10.mob
 
 the first argument 1989 is the port number of http server so that you can run in multiple web pages with different port number simultaneously. w20n4s1001v10.mob is the sample mobility trace file used for testing.
 
